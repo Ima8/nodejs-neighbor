@@ -1,5 +1,40 @@
+var http = require('http');
 var cluster = require("cluster");
-var start = new Date();
+//The url we want is: 'www.random.org/integers/?num=1&min=1&max=10&col=1&base=10&format=plain&rnd=new'
+var options = {
+  host: '127.0.0.1',
+  port: '3000',
+  path: '/'
+};
+
+var num = 0;
+var stop = 20000;
+var hrstart = process.hrtime();
+start = function() {
+
+  callback = function(response) {
+    var str = '';
+
+    //another chunk of data has been recieved, so append it to `str`
+    response.on('data', function(chunk) {
+      str += chunk;
+    });
+
+    //the whole response has been recieved, so we just print it out here
+    response.on('end', function() {
+      console.log(str + " =  " + ++num);
+      if (num > stop) {
+        hrend = process.hrtime(hrstart);
+        console.info("Execution time (hr): %ds %dms", hrend[0], hrend[1] /
+          1000000);
+      } else {
+        start();
+      }
+
+    });
+  }
+  http.request(options, callback).end();
+}
 if (cluster.isMaster) {
   // this is the master control process
   console.log("Control process running: PID=" + process.pid);
@@ -9,6 +44,7 @@ if (cluster.isMaster) {
 
   for (var i = 0; i < numCPUs / 2; i++) {
     cluster.fork();
+
   }
 
   // handle unwanted worker exits
@@ -43,7 +79,6 @@ if (cluster.isMaster) {
       var newWorker = cluster.fork();
       newWorker.on("listening", function() {
         console.log("Replacement worker online.");
-
         i++;
         f();
       });
@@ -51,6 +86,6 @@ if (cluster.isMaster) {
     f();
   });
 } else {
-  //var app = require("./app");
-  var app = require("./app");
+  console.log("Hello  >>  " + process.pid);
+  start();
 }
